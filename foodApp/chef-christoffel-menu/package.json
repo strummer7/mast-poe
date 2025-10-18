@@ -1,0 +1,28 @@
+{
+  "name": "chef-christoffel-menu",
+  "version": "1.0.0",
+  "description": "A React Native application for Chef Christoffel to manage and update his menu.",
+  "main": "src/App.tsx",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build": "expo build"
+  },
+  "dependencies": {
+    "expo": "~48.0.0",
+    "react": "18.0.0",
+    "react-dom": "18.0.0",
+    "react-native": "0.71.0",
+    "react-navigation": "^6.0.0",
+    "react-navigation-stack": "^2.10.4",
+    "typescript": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.0",
+    "@types/react-native": "^0.66.0",
+    "@types/react-navigation": "^4.0.0"
+  },
+  "private": true
+}
