@@ -13,6 +13,8 @@ import {
   Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import CustomerLogin from "./CustomerLogin";
+import ChefLogin from "./ChefLogin";
 
 type Course = "Starters" | "Mains" | "Desserts";
 type Dish = {
@@ -43,6 +45,13 @@ export default function App(): JSX.Element {
   const [description, setDescription] = useState("");
   const [course, setCourse] = useState<Course>("Mains");
   const [priceText, setPriceText] = useState("");
+
+  // auth state: null = choose, "customer" = logged customer, "chef" = logged chef
+  const [authView, setAuthView] = useState<null | "customer" | "chef">(null);
+  const [customerName, setCustomerName] = useState<string | null>(null);
+  // when chef is logged in we show the full management UI (existing)
+  const isChef = authView === "chef";
+  const isCustomer = authView === "customer";
 
   useEffect(() => {
     (async () => {
@@ -119,7 +128,8 @@ export default function App(): JSX.Element {
     ]);
   };
 
-  const renderDish = ({ item }: { item: Dish }) => (
+  // dish render for chef (with delete)
+  const renderChefDish = ({ item }: { item: Dish }) => (
     <View style={styles.dishCard}>
       <View style={styles.dishLeft}>
         <View style={[styles.badge, { backgroundColor: courseColors[item.course] }]}>
@@ -138,6 +148,84 @@ export default function App(): JSX.Element {
     </View>
   );
 
+  // dish render for customers (read-only)
+  const renderCustomerDish = ({ item }: { item: Dish }) => (
+    <View style={styles.dishCard}>
+      <View style={styles.dishLeft}>
+        <View style={[styles.badge, { backgroundColor: courseColors[item.course] }]}>
+          <Text style={styles.badgeText}>{item.course}</Text>
+        </View>
+        <Text style={styles.dishName}>{item.name}</Text>
+        {item.description ? <Text style={styles.dishDesc}>{item.description}</Text> : null}
+      </View>
+
+      <View style={styles.dishRight}>
+        <Text style={styles.price}>R{item.price.toFixed(2)}</Text>
+      </View>
+    </View>
+  );
+
+  // AUTH: choose mode / login screens / main views
+  if (authView === null) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ padding: 24, marginTop: 40 }}>
+          <Text style={{ fontSize: 26, fontWeight: "800", marginBottom: 8 }}>Welcome</Text>
+          <Text style={{ color: "#666", marginBottom: 20 }}>
+            Choose how you'd like to proceed
+          </Text>
+          <TouchableOpacity
+            style={[styles.loginBtn, { backgroundColor: "#1e90ff", marginBottom: 12 }]}
+            onPress={() => setAuthView("customer")}
+          >
+            <Text style={{ color: "#fff", fontWeight: "800" }}>Customer — View Menu</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.loginBtn, { backgroundColor: "#333" }]}
+            onPress={() => setAuthView("chef")}
+          >
+            <Text style={{ color: "#fff", fontWeight: "800" }}>Chef — Manage Menu</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // show login screens
+  if (authView === "customer" && !isCustomer) {
+    return <CustomerLogin onLogin={(name) => { setCustomerName(name); setAuthView("customer"); }} onBack={() => setAuthView(null)} />;
+  }
+
+  if (authView === "chef" && !isChef) {
+    return <ChefLogin onLogin={() => setAuthView("chef")} onBack={() => setAuthView(null)} />;
+  }
+
+  // Customer view (read-only)
+  if (authView === "customer") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Hi {customerName ?? "Guest"}</Text>
+          <Text style={styles.tagline}>Here's Chef Christoffel's latest menu</Text>
+        </View>
+
+        <FlatList
+          data={menu}
+          keyExtractor={(item) => item.id}
+          renderItem={renderCustomerDish}
+          ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>No dishes yet.</Text></View>}
+          contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+        />
+
+        <TouchableOpacity style={[styles.loginBtn, { margin: 16 }]} onPress={() => { setAuthView(null); setCustomerName(null); }}>
+          <Text style={{ color: "#fff", fontWeight: "800" }}>Sign out</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // Chef view (original management UI) — reuse existing UI (add/delete)
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -174,7 +262,7 @@ export default function App(): JSX.Element {
       <FlatList
         data={menu}
         keyExtractor={(item) => item.id}
-        renderItem={renderDish}
+        renderItem={renderChefDish}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>No dishes yet. Tap + to add the first dish.</Text>
@@ -400,4 +488,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   badgeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+
+  loginBtn: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 12,
+  },
 });
