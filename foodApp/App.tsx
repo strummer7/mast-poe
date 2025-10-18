@@ -27,6 +27,13 @@ type Dish = {
 const STORAGE_KEY = "@chef_menu_items";
 const COURSES: Course[] = ["Starters", "Mains", "Desserts"];
 
+// added: color map for course badges
+const courseColors: Record<Course, string> = {
+  Starters: "#FFB86B",
+  Mains: "#6BB0FF",
+  Desserts: "#FF8ACB",
+};
+
 export default function App(): JSX.Element {
   const [menu, setMenu] = useState<Dish[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -113,32 +120,55 @@ export default function App(): JSX.Element {
   };
 
   const renderDish = ({ item }: { item: Dish }) => (
-    <View style={styles.dishRow}>
-      <View style={{ flex: 1 }}>
+    <View style={styles.dishCard}>
+      <View style={styles.dishLeft}>
+        <View style={[styles.badge, { backgroundColor: courseColors[item.course] }]}>
+          <Text style={styles.badgeText}>{item.course}</Text>
+        </View>
         <Text style={styles.dishName}>{item.name}</Text>
-        <Text style={styles.dishMeta}>
-          {item.course} • R{item.price.toFixed(2)}
-        </Text>
-        {item.description ? (
-          <Text style={styles.dishDesc}>{item.description}</Text>
-        ) : null}
+        {item.description ? <Text style={styles.dishDesc}>{item.description}</Text> : null}
       </View>
-      <TouchableOpacity
-        onPress={() => removeDish(item.id)}
-        style={styles.deleteButton}
-      >
-        <Text style={styles.deleteText}>Delete</Text>
-      </TouchableOpacity>
+
+      <View style={styles.dishRight}>
+        <Text style={styles.price}>R{item.price.toFixed(2)}</Text>
+        <TouchableOpacity onPress={() => removeDish(item.id)} style={styles.deleteButton}>
+          <Text style={styles.deleteText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Chef Christoffel's Menu</Text>
-        <Text style={styles.subtitle}>
-          Total dishes: {menu.length}
-        </Text>
+        <View style={styles.chefRow}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarInitial}>C</Text>
+          </View>
+          <View style={styles.chefInfo}>
+            <Text style={styles.title}>Chef Christoffel</Text>
+            <Text style={styles.tagline}>Curating seasonal, soulful plates</Text>
+          </View>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryNumber}>{menu.length}</Text>
+            <Text style={styles.summaryLabel}>Total dishes</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryNumber}>{menu.filter(m => m.course === "Starters").length}</Text>
+            <Text style={styles.summaryLabel}>Starters</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryNumber}>{menu.filter(m => m.course === "Mains").length}</Text>
+            <Text style={styles.summaryLabel}>Mains</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryNumber}>{menu.filter(m => m.course === "Desserts").length}</Text>
+            <Text style={styles.summaryLabel}>Desserts</Text>
+          </View>
+        </View>
       </View>
 
       <FlatList
@@ -147,20 +177,19 @@ export default function App(): JSX.Element {
         renderItem={renderDish}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No dishes yet. Add one!</Text>
+            <Text style={styles.emptyText}>No dishes yet. Tap + to add the first dish.</Text>
           </View>
         }
-        contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
       />
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setModalVisible(true)}
-        >
-          <Text style={styles.addButtonText}>Add Dish</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setModalVisible(true)}
+        accessibilityLabel="Add dish"
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
         <KeyboardAvoidingView
@@ -245,53 +274,76 @@ export default function App(): JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fafafa" },
-  header: { padding: 16, borderBottomWidth: 1, borderColor: "#eee" },
-  title: { fontSize: 20, fontWeight: "700" },
-  subtitle: { marginTop: 4, color: "#666" },
-
-  dishRow: {
-    flexDirection: "row",
+  container: { flex: 1, backgroundColor: "#F7F7F8" },
+  header: { padding: 16, backgroundColor: "#fff", borderBottomWidth: 0, elevation: 2 },
+  chefRow: { flexDirection: "row", alignItems: "center" },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#333",
     alignItems: "center",
-    padding: 12,
-    backgroundColor: "white",
-    borderRadius: 8,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
+    justifyContent: "center",
+  },
+  avatarInitial: { color: "#fff", fontWeight: "700", fontSize: 22 },
+  chefInfo: { marginLeft: 12 },
+  title: { fontSize: 18, fontWeight: "800" },
+  tagline: { color: "#666", marginTop: 2 },
+
+  summaryRow: { flexDirection: "row", marginTop: 12, justifyContent: "space-between" },
+  summaryCard: {
+    flex: 1,
+    marginHorizontal: 4,
+    backgroundColor: "#fff",
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
     elevation: 1,
   },
-  dishName: { fontSize: 16, fontWeight: "600" },
-  dishMeta: { color: "#666", marginTop: 4 },
-  dishDesc: { marginTop: 6, color: "#444" },
+  summaryNumber: { fontSize: 18, fontWeight: "800" },
+  summaryLabel: { color: "#777", marginTop: 4, fontSize: 12 },
 
+  dishCard: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: "center",
+    elevation: 1,
+  },
+  dishLeft: { flex: 1 },
+  dishRight: { alignItems: "flex-end", marginLeft: 12 },
+  dishName: { fontSize: 16, fontWeight: "700" },
+  dishDesc: { marginTop: 6, color: "#666", fontSize: 13 },
+
+  price: { fontSize: 14, fontWeight: "800", color: "#333" },
   deleteButton: {
-    marginLeft: 12,
+    marginTop: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#f44336",
   },
-  deleteText: { color: "#f44336", fontWeight: "600" },
+  deleteText: { color: "#f44336", fontWeight: "700" },
 
-  empty: { flex: 1, alignItems: "center", justifyContent: "center" },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 40 },
   emptyText: { color: "#888" },
 
-  footer: {
-    padding: 12,
-    borderTopWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fff",
-  },
-  addButton: {
+  fab: {
+    position: "absolute",
+    right: 18,
+    bottom: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: "#1e90ff",
-    paddingVertical: 12,
-    borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
   },
-  addButtonText: { color: "white", fontWeight: "700" },
+  fabText: { color: "#fff", fontSize: 30, fontWeight: "700" },
 
   modalWrap: {
     flex: 1,
@@ -339,4 +391,13 @@ const styles = StyleSheet.create({
   cancelButton: { borderWidth: 1, borderColor: "#ccc", backgroundColor: "#fff" },
   saveButton: { backgroundColor: "#28a745" },
   actionText: { fontWeight: "700" },
+
+  badge: {
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  badgeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
 });
