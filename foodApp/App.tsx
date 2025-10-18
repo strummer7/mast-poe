@@ -13,8 +13,6 @@ import {
   Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import CustomerLogin from "./CustomerLogin";
-import ChefLogin from "./ChefLogin";
 
 type Course = "Starters" | "Mains" | "Desserts";
 type Dish = {
@@ -46,12 +44,13 @@ export default function App(): JSX.Element {
   const [course, setCourse] = useState<Course>("Mains");
   const [priceText, setPriceText] = useState("");
 
-  // auth state: null = choose, "customer" = logged customer, "chef" = logged chef
-  const [authView, setAuthView] = useState<null | "customer" | "chef">(null);
-  const [customerName, setCustomerName] = useState<string | null>(null);
-  // when chef is logged in we show the full management UI (existing)
-  const isChef = authView === "chef";
-  const isCustomer = authView === "customer";
+  // UI state
+  const [screen, setScreen] = useState<"home" | "chef">("home");
+  const [filter, setFilter] = useState<"All" | Course>("All");
+
+  // selection state for customers
+  const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
+  const [selectedDishId, setSelectedDishId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -105,7 +104,6 @@ export default function App(): JSX.Element {
   };
 
   const removeDish = (id: string) => {
-    // cross-platform confirmation: use window.confirm on web, Alert on native
     const doDelete = (deleteId: string) => {
       const updated = menu.filter((d) => d.id !== deleteId);
       setMenu(updated);
@@ -128,7 +126,6 @@ export default function App(): JSX.Element {
     ]);
   };
 
-  // dish render for chef (with delete)
   const renderChefDish = ({ item }: { item: Dish }) => (
     <View style={styles.dishCard}>
       <View style={styles.dishLeft}>
@@ -148,84 +145,92 @@ export default function App(): JSX.Element {
     </View>
   );
 
-  // dish render for customers (read-only)
-  const renderCustomerDish = ({ item }: { item: Dish }) => (
-    <View style={styles.dishCard}>
-      <View style={styles.dishLeft}>
-        <View style={[styles.badge, { backgroundColor: courseColors[item.course] }]}>
-          <Text style={styles.badgeText}>{item.course}</Text>
-        </View>
-        <Text style={styles.dishName}>{item.name}</Text>
-        {item.description ? <Text style={styles.dishDesc}>{item.description}</Text> : null}
-      </View>
-
-      <View style={styles.dishRight}>
-        <Text style={styles.price}>R{item.price.toFixed(2)}</Text>
-      </View>
-    </View>
-  );
-
-  // AUTH: choose mode / login screens / main views
-  if (authView === null) {
+  const renderCustomerDish = ({ item }: { item: Dish }) => {
+    const isSelected = selectedDishId === item.id;
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={{ padding: 24, marginTop: 40 }}>
-          <Text style={{ fontSize: 26, fontWeight: "800", marginBottom: 8 }}>Welcome</Text>
-          <Text style={{ color: "#666", marginBottom: 20 }}>
-            Choose how you'd like to proceed
-          </Text>
-          <TouchableOpacity
-            style={[styles.loginBtn, { backgroundColor: "#1e90ff", marginBottom: 12 }]}
-            onPress={() => setAuthView("customer")}
-          >
-            <Text style={{ color: "#fff", fontWeight: "800" }}>Customer — View Menu</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.loginBtn, { backgroundColor: "#333" }]}
-            onPress={() => setAuthView("chef")}
-          >
-            <Text style={{ color: "#fff", fontWeight: "800" }}>Chef — Manage Menu</Text>
-          </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => setSelectedDish(item)}
+        activeOpacity={0.8}
+        style={[styles.dishCard, isSelected && styles.dishCardSelected]}
+      >
+        <View style={styles.dishLeft}>
+          <View style={[styles.badge, { backgroundColor: courseColors[item.course] }]}>
+            <Text style={styles.badgeText}>{item.course}</Text>
+          </View>
+          <Text style={styles.dishName}>{item.name}</Text>
+          {item.description ? <Text style={styles.dishDesc}>{item.description}</Text> : null}
         </View>
-      </SafeAreaView>
+
+        <View style={styles.dishRight}>
+          <Text style={styles.price}>R{item.price.toFixed(2)}</Text>
+          {isSelected ? <Text style={styles.selectedMark}>✓ Selected</Text> : null}
+        </View>
+      </TouchableOpacity>
     );
-  }
+  };
 
-  // show login screens
-  if (authView === "customer" && !isCustomer) {
-    return <CustomerLogin onLogin={(name) => { setCustomerName(name); setAuthView("customer"); }} onBack={() => setAuthView(null)} />;
-  }
+  // Home screen (customer) with filter
+  if (screen === "home") {
+    const visible = filter === "All" ? menu : menu.filter((m) => m.course === filter);
 
-  if (authView === "chef" && !isChef) {
-    return <ChefLogin onLogin={() => setAuthView("chef")} onBack={() => setAuthView(null)} />;
-  }
-
-  // Customer view (read-only)
-  if (authView === "customer") {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Hi {customerName ?? "Guest"}</Text>
-          <Text style={styles.tagline}>Here's Chef Christoffel's latest menu</Text>
+          <View style={styles.chefRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarInitial}>C</Text>
+            </View>
+            <View style={styles.chefInfo}>
+              <Text style={styles.title}>Chef Christoffel</Text>
+              <Text style={styles.tagline}>Latest menu — curated daily</Text>
+            </View>
+          </View>
+
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              style={[styles.filterBtn, filter === "All" && styles.filterBtnActive]}
+              onPress={() => setFilter("All")}
+            >
+              <Text style={[styles.filterText, filter === "All" && styles.filterTextActive]}>All</Text>
+            </TouchableOpacity>
+
+            {COURSES.map((c) => (
+              <TouchableOpacity
+                key={c}
+                style={[styles.filterBtn, filter === c && styles.filterBtnActive]}
+                onPress={() => setFilter(c)}
+              >
+                <Text style={[styles.filterText, filter === c && styles.filterTextActive]}>{c}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <FlatList
-          data={menu}
+          data={visible}
           keyExtractor={(item) => item.id}
           renderItem={renderCustomerDish}
-          ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>No dishes yet.</Text></View>}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>No dishes yet. Come back soon.</Text>
+            </View>
+          }
           contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
         />
 
-        <TouchableOpacity style={[styles.loginBtn, { margin: 16 }]} onPress={() => { setAuthView(null); setCustomerName(null); }}>
-          <Text style={{ color: "#fff", fontWeight: "800" }}>Sign out</Text>
-        </TouchableOpacity>
+        <View style={{ padding: 16 }}>
+          <TouchableOpacity
+            style={[styles.loginBtn, { backgroundColor: "#333" }]}
+            onPress={() => setScreen("chef")}
+          >
+            <Text style={{ color: "#fff", fontWeight: "800" }}>Manage menu (Chef)</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
-  // Chef view (original management UI) — reuse existing UI (add/delete)
+  // Chef screen — management UI (add/delete)
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -234,8 +239,8 @@ export default function App(): JSX.Element {
             <Text style={styles.avatarInitial}>C</Text>
           </View>
           <View style={styles.chefInfo}>
-            <Text style={styles.title}>Chef Christoffel</Text>
-            <Text style={styles.tagline}>Curating seasonal, soulful plates</Text>
+            <Text style={styles.title}>Chef Management</Text>
+            <Text style={styles.tagline}>Add or remove dishes</Text>
           </View>
         </View>
 
@@ -245,15 +250,15 @@ export default function App(): JSX.Element {
             <Text style={styles.summaryLabel}>Total dishes</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{menu.filter(m => m.course === "Starters").length}</Text>
+            <Text style={styles.summaryNumber}>{menu.filter((m) => m.course === "Starters").length}</Text>
             <Text style={styles.summaryLabel}>Starters</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{menu.filter(m => m.course === "Mains").length}</Text>
+            <Text style={styles.summaryNumber}>{menu.filter((m) => m.course === "Mains").length}</Text>
             <Text style={styles.summaryLabel}>Mains</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{menu.filter(m => m.course === "Desserts").length}</Text>
+            <Text style={styles.summaryNumber}>{menu.filter((m) => m.course === "Desserts").length}</Text>
             <Text style={styles.summaryLabel}>Desserts</Text>
           </View>
         </View>
@@ -279,6 +284,15 @@ export default function App(): JSX.Element {
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
+      <View style={{ position: "absolute", left: 16, top: 24 }}>
+        <TouchableOpacity
+          style={[styles.backBtnInline]}
+          onPress={() => setScreen("home")}
+        >
+          <Text style={{ color: "#333", fontWeight: "700" }}>← Home</Text>
+        </TouchableOpacity>
+      </View>
+
       <Modal visible={modalVisible} animationType="slide" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -287,12 +301,7 @@ export default function App(): JSX.Element {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Add New Dish</Text>
 
-            <TextInput
-              placeholder="Dish name"
-              value={name}
-              onChangeText={setName}
-              style={styles.input}
-            />
+            <TextInput placeholder="Dish name" value={name} onChangeText={setName} style={styles.input} />
             <TextInput
               placeholder="Description (optional)"
               value={description}
@@ -308,19 +317,9 @@ export default function App(): JSX.Element {
                   <TouchableOpacity
                     key={c}
                     onPress={() => setCourse(c)}
-                    style={[
-                      styles.courseButton,
-                      selected && styles.courseButtonSelected,
-                    ]}
+                    style={[styles.courseButton, selected && styles.courseButtonSelected]}
                   >
-                    <Text
-                      style={[
-                        styles.courseText,
-                        selected && styles.courseTextSelected,
-                      ]}
-                    >
-                      {c}
-                    </Text>
+                    <Text style={[styles.courseText, selected && styles.courseTextSelected]}>{c}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -345,13 +344,8 @@ export default function App(): JSX.Element {
                 <Text style={styles.actionText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={addDish}
-                style={[styles.actionButton, styles.saveButton]}
-              >
-                <Text style={[styles.actionText, { color: "white" }]}>
-                  Save
-                </Text>
+              <TouchableOpacity onPress={addDish} style={[styles.actionButton, styles.saveButton]}>
+                <Text style={[styles.actionText, { color: "white" }]}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -399,6 +393,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: "center",
     elevation: 1,
+  },
+  dishCardSelected: {
+    backgroundColor: "#e1f5fe",
   },
   dishLeft: { flex: 1 },
   dishRight: { alignItems: "flex-end", marginLeft: 12 },
@@ -489,10 +486,40 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
 
+  // filters + manage button
+  filterRow: { flexDirection: "row", marginTop: 12, alignItems: "center", flexWrap: "wrap" },
+  filterBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e3e3e3",
+    backgroundColor: "#fff",
+    marginRight: 8,
+    marginTop: 6,
+  },
+  filterBtnActive: { backgroundColor: "#1e90ff", borderColor: "#1e90ff" },
+  filterText: { color: "#333", fontWeight: "700" },
+  filterTextActive: { color: "#fff" },
+
   loginBtn: {
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
     marginTop: 12,
+  },
+
+  backBtnInline: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    elevation: 2,
+  },
+
+  selectedMark: {
+    marginTop: 8,
+    color: "#4caf50",
+    fontWeight: "700",
   },
 });
