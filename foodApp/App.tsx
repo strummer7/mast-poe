@@ -27,6 +27,18 @@ type Dish = {
 const STORAGE_KEY = "@chef_menu_items";
 const COURSES: Course[] = ["Starters", "Mains", "Desserts"];
 
+// Theme colors
+const COLORS = {
+  primary: "#15d825ff", // warm chef red
+  accent: "#e63fcfff",
+  sky: "#ff7c6bff",
+  mint: "#4DD0E1",
+  dark: "#263238",
+  light: "#F7F7F8",
+  card: "#FFFFFF",
+  muted: "#777",
+};
+
 // added: color map for course badges
 const courseColors: Record<Course, string> = {
   Starters: "#FFB86B",
@@ -127,7 +139,8 @@ export default function App(): JSX.Element {
   };
 
   const renderChefDish = ({ item }: { item: Dish }) => (
-    <View style={styles.dishCard}>
+    <View style={[styles.dishCard, styles.shadow]}>
+      <View style={[styles.accentStrip, { backgroundColor: courseColors[item.course] }]} />
       <View style={styles.dishLeft}>
         <View style={[styles.badge, { backgroundColor: courseColors[item.course] }]}>
           <Text style={styles.badgeText}>{item.course}</Text>
@@ -150,9 +163,14 @@ export default function App(): JSX.Element {
     return (
       <TouchableOpacity
         onPress={() => setSelectedDish(item)}
-        activeOpacity={0.8}
-        style={[styles.dishCard, isSelected && styles.dishCardSelected]}
+        activeOpacity={0.9}
+        style={[
+          styles.dishCard,
+          styles.shadow,
+          isSelected && styles.dishCardSelected,
+        ]}
       >
+        <View style={[styles.accentStrip, { backgroundColor: courseColors[item.course] }]} />
         <View style={styles.dishLeft}>
           <View style={[styles.badge, { backgroundColor: courseColors[item.course] }]}>
             <Text style={styles.badgeText}>{item.course}</Text>
@@ -175,34 +193,37 @@ export default function App(): JSX.Element {
 
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.chefRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarInitial}>C</Text>
+        <View style={styles.headerWrap}>
+          <View style={styles.headerTop} />
+          <View style={[styles.headerCard, styles.shadow]}>
+            <View style={styles.chefRow}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarInitial}>C</Text>
+              </View>
+              <View style={styles.chefInfo}>
+                <Text style={styles.title}>Chef Christoffel</Text>
+                <Text style={styles.tagline}>Latest menu — curated daily</Text>
+              </View>
             </View>
-            <View style={styles.chefInfo}>
-              <Text style={styles.title}>Chef Christoffel</Text>
-              <Text style={styles.tagline}>Latest menu — curated daily</Text>
-            </View>
-          </View>
 
-          <View style={styles.filterRow}>
-            <TouchableOpacity
-              style={[styles.filterBtn, filter === "All" && styles.filterBtnActive]}
-              onPress={() => setFilter("All")}
-            >
-              <Text style={[styles.filterText, filter === "All" && styles.filterTextActive]}>All</Text>
-            </TouchableOpacity>
-
-            {COURSES.map((c) => (
+            <View style={styles.filterRow}>
               <TouchableOpacity
-                key={c}
-                style={[styles.filterBtn, filter === c && styles.filterBtnActive]}
-                onPress={() => setFilter(c)}
+                style={[styles.filterBtn, filter === "All" && styles.filterBtnActive]}
+                onPress={() => setFilter("All")}
               >
-                <Text style={[styles.filterText, filter === c && styles.filterTextActive]}>{c}</Text>
+                <Text style={[styles.filterText, filter === "All" && styles.filterTextActive]}>All</Text>
               </TouchableOpacity>
-            ))}
+
+              {COURSES.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.filterBtn, filter === c && styles.filterBtnActive]}
+                  onPress={() => setFilter(c)}
+                >
+                  <Text style={[styles.filterText, filter === c && styles.filterTextActive]}>{c}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
 
@@ -220,12 +241,44 @@ export default function App(): JSX.Element {
 
         <View style={{ padding: 16 }}>
           <TouchableOpacity
-            style={[styles.loginBtn, { backgroundColor: "#333" }]}
+            style={[styles.loginBtn, { backgroundColor: COLORS.dark }]}
             onPress={() => setScreen("chef")}
           >
             <Text style={{ color: "#fff", fontWeight: "800" }}>Manage menu (Chef)</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Dish detail / select modal for customers */}
+        <Modal visible={!!selectedDish} animationType="fade" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.detailModal, styles.shadow]}>
+              <Text style={styles.modalTitle}>{selectedDish?.name}</Text>
+              <Text style={styles.dishMeta}>
+                {selectedDish?.course} • R{selectedDish ? selectedDish.price.toFixed(2) : ""}
+              </Text>
+              {selectedDish?.description ? <Text style={styles.dishDesc}>{selectedDish.description}</Text> : null}
+
+              <View style={{ flexDirection: "row", marginTop: 14 }}>
+                <TouchableOpacity
+                  onPress={() => setSelectedDish(null)}
+                  style={[styles.actionButton, styles.cancelButton]}
+                >
+                  <Text style={styles.actionText}>Close</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    if (selectedDish) setSelectedDishId(selectedDish.id);
+                    setSelectedDish(null);
+                  }}
+                  style={[styles.actionButton, styles.saveButton]}
+                >
+                  <Text style={[styles.actionText, { color: "#fff" }]}>Select</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     );
   }
@@ -233,33 +286,36 @@ export default function App(): JSX.Element {
   // Chef screen — management UI (add/delete)
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.chefRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarInitial}>C</Text>
+      <View style={styles.headerWrap}>
+        <View style={styles.headerTop} />
+        <View style={[styles.headerCard, styles.shadow]}>
+          <View style={styles.chefRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarInitial}>C</Text>
+            </View>
+            <View style={styles.chefInfo}>
+              <Text style={styles.title}>Chef Management</Text>
+              <Text style={styles.tagline}>Add or remove dishes</Text>
+            </View>
           </View>
-          <View style={styles.chefInfo}>
-            <Text style={styles.title}>Chef Management</Text>
-            <Text style={styles.tagline}>Add or remove dishes</Text>
-          </View>
-        </View>
 
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{menu.length}</Text>
-            <Text style={styles.summaryLabel}>Total dishes</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{menu.filter((m) => m.course === "Starters").length}</Text>
-            <Text style={styles.summaryLabel}>Starters</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{menu.filter((m) => m.course === "Mains").length}</Text>
-            <Text style={styles.summaryLabel}>Mains</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryNumber}>{menu.filter((m) => m.course === "Desserts").length}</Text>
-            <Text style={styles.summaryLabel}>Desserts</Text>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryCard, { backgroundColor: "#FFF3E0" }]}>
+              <Text style={[styles.summaryNumber, { color: COLORS.primary }]}>{menu.length}</Text>
+              <Text style={styles.summaryLabel}>Total dishes</Text>
+            </View>
+            <View style={[styles.summaryCard, { backgroundColor: "#E1F5FE" }]}>
+              <Text style={[styles.summaryNumber, { color: COLORS.sky }]}>{menu.filter((m) => m.course === "Starters").length}</Text>
+              <Text style={styles.summaryLabel}>Starters</Text>
+            </View>
+            <View style={[styles.summaryCard, { backgroundColor: "#E8F5E9" }]}>
+              <Text style={[styles.summaryNumber, { color: COLORS.mint }]}>{menu.filter((m) => m.course === "Mains").length}</Text>
+              <Text style={styles.summaryLabel}>Mains</Text>
+            </View>
+            <View style={[styles.summaryCard, { backgroundColor: "#FCE4EC" }]}>
+              <Text style={[styles.summaryNumber, { color: COLORS.accent }]}>{menu.filter((m) => m.course === "Desserts").length}</Text>
+              <Text style={styles.summaryLabel}>Desserts</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -277,7 +333,7 @@ export default function App(): JSX.Element {
       />
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, styles.shadow]}
         onPress={() => setModalVisible(true)}
         accessibilityLabel="Add dish"
       >
@@ -289,7 +345,7 @@ export default function App(): JSX.Element {
           style={[styles.backBtnInline]}
           onPress={() => setScreen("home")}
         >
-          <Text style={{ color: "#333", fontWeight: "700" }}>← Home</Text>
+          <Text style={{ color: COLORS.dark, fontWeight: "700" }}>← Home</Text>
         </TouchableOpacity>
       </View>
 
@@ -298,7 +354,7 @@ export default function App(): JSX.Element {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.modalWrap}
         >
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, styles.shadow]}>
             <Text style={styles.modalTitle}>Add New Dish</Text>
 
             <TextInput placeholder="Dish name" value={name} onChangeText={setName} style={styles.input} />
@@ -356,53 +412,76 @@ export default function App(): JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F7F8" },
-  header: { padding: 16, backgroundColor: "#fff", borderBottomWidth: 0, elevation: 2 },
+  container: { flex: 1, backgroundColor: COLORS.light },
+  // header with top color band and overlapping card
+  headerWrap: { marginBottom: 8 },
+  headerTop: { height: 92, backgroundColor: COLORS.primary },
+  headerCard: {
+    marginHorizontal: 16,
+    marginTop: -44,
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    elevation: 3,
+  },
+
   chefRow: { flexDirection: "row", alignItems: "center" },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#333",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.dark,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarInitial: { color: "#fff", fontWeight: "700", fontSize: 22 },
-  chefInfo: { marginLeft: 12 },
-  title: { fontSize: 18, fontWeight: "800" },
-  tagline: { color: "#666", marginTop: 2 },
+  avatarInitial: { color: "#fff", fontWeight: "800", fontSize: 22 },
+  chefInfo: { marginLeft: 14 },
+  title: { fontSize: 20, fontWeight: "900", color: COLORS.dark },
+  tagline: { color: COLORS.muted, marginTop: 4 },
 
   summaryRow: { flexDirection: "row", marginTop: 12, justifyContent: "space-between" },
   summaryCard: {
     flex: 1,
     marginHorizontal: 4,
-    backgroundColor: "#fff",
-    padding: 10,
+    backgroundColor: COLORS.card,
+    padding: 12,
     borderRadius: 10,
     alignItems: "center",
-    elevation: 1,
   },
-  summaryNumber: { fontSize: 18, fontWeight: "800" },
-  summaryLabel: { color: "#777", marginTop: 4, fontSize: 12 },
+  summaryNumber: { fontSize: 18, fontWeight: "900" },
+  summaryLabel: { color: COLORS.muted, marginTop: 4, fontSize: 12 },
 
   dishCard: {
     flexDirection: "row",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.card,
     padding: 12,
     borderRadius: 12,
     marginBottom: 12,
     alignItems: "center",
-    elevation: 1,
+    overflow: "hidden",
+  },
+  accentStrip: {
+    width: 6,
+    height: "100%",
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    marginRight: 12,
   },
   dishCardSelected: {
-    backgroundColor: "#e1f5fe",
+    backgroundColor: "#FFF8E1",
+    borderWidth: 1,
+    borderColor: COLORS.accent,
   },
   dishLeft: { flex: 1 },
   dishRight: { alignItems: "flex-end", marginLeft: 12 },
-  dishName: { fontSize: 16, fontWeight: "700" },
-  dishDesc: { marginTop: 6, color: "#666", fontSize: 13 },
+  dishName: { fontSize: 16, fontWeight: "800", color: COLORS.dark },
+  dishDesc: { marginTop: 6, color: COLORS.muted, fontSize: 13 },
 
-  price: { fontSize: 14, fontWeight: "800", color: "#333" },
+  price: { fontSize: 14, fontWeight: "900", color: COLORS.dark },
   deleteButton: {
     marginTop: 8,
     paddingVertical: 6,
@@ -410,11 +489,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#f44336",
+    backgroundColor: "#fff",
   },
-  deleteText: { color: "#f44336", fontWeight: "700" },
+  deleteText: { color: "#f44336", fontWeight: "800" },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 40 },
-  emptyText: { color: "#888" },
+  emptyText: { color: COLORS.muted },
 
   fab: {
     position: "absolute",
@@ -423,12 +503,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#1e90ff",
+    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 6,
+    elevation: 8,
   },
-  fabText: { color: "#fff", fontSize: 30, fontWeight: "700" },
+  fabText: { color: "#fff", fontSize: 30, fontWeight: "900" },
 
   modalWrap: {
     flex: 1,
@@ -441,10 +521,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
+  modalTitle: { fontSize: 18, fontWeight: "800", marginBottom: 8 },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#eee",
     borderRadius: 8,
     padding: 10,
     marginTop: 8,
@@ -456,14 +536,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#eee",
     flex: 1,
     marginHorizontal: 4,
     alignItems: "center",
+    backgroundColor: "#fff",
   },
-  courseButtonSelected: { backgroundColor: "#1e90ff", borderColor: "#1e90ff" },
-  courseText: { color: "#333" },
-  courseTextSelected: { color: "white", fontWeight: "700" },
+  courseButtonSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  courseText: { color: COLORS.dark },
+  courseTextSelected: { color: "#fff", fontWeight: "800" },
 
   modalActions: { flexDirection: "row", marginTop: 14 },
   actionButton: {
@@ -474,8 +555,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   cancelButton: { borderWidth: 1, borderColor: "#ccc", backgroundColor: "#fff" },
-  saveButton: { backgroundColor: "#28a745" },
-  actionText: { fontWeight: "700" },
+  saveButton: { backgroundColor: COLORS.primary },
+  actionText: { fontWeight: "800" },
 
   badge: {
     alignSelf: "flex-start",
@@ -484,7 +565,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
   },
-  badgeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  badgeText: { color: "#fff", fontWeight: "800", fontSize: 12 },
 
   // filters + manage button
   filterRow: { flexDirection: "row", marginTop: 12, alignItems: "center", flexWrap: "wrap" },
@@ -493,13 +574,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#e3e3e3",
+    borderColor: "#eee",
     backgroundColor: "#fff",
     marginRight: 8,
     marginTop: 6,
   },
-  filterBtnActive: { backgroundColor: "#1e90ff", borderColor: "#1e90ff" },
-  filterText: { color: "#333", fontWeight: "700" },
+  filterBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  filterText: { color: COLORS.dark, fontWeight: "800" },
   filterTextActive: { color: "#fff" },
 
   loginBtn: {
@@ -520,6 +601,19 @@ const styles = StyleSheet.create({
   selectedMark: {
     marginTop: 8,
     color: "#4caf50",
-    fontWeight: "700",
+    fontWeight: "900",
   },
+
+  // shadow helper
+  shadow: {
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 4,
+  },
+
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", alignItems: "center" },
+  detailModal: { width: "90%", backgroundColor: "#fff", padding: 16, borderRadius: 12 },
+  dishMeta: { color: COLORS.muted, marginTop: 6 },
 });
