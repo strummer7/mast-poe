@@ -102,7 +102,7 @@ export default function App(): JSX.Element {
           <View style={[styles.headerCard, styles.shadow]}>
             <View style={styles.chefRow}>
               <View style={styles.avatar}><Text style={styles.avatarInitial}>C</Text></View>
-              <View style={styles.chefInfo}><Text style={styles.title}>Chef Christoffel</Text><Text style={styles.tagline}>Latest menu — curated daily</Text></View>
+              <View style={styles.chefInfo}><Text style={styles.title}>Chef Christoffel</Text><Text style={styles.tagline}>Latest menu — curated daily</Text><Text style={{ color: COLORS.muted, marginTop: 6, fontSize: 12 }}>Total meals: {menu.length}</Text></View>
             </View>
             <View style={styles.filterRow}>
               <TouchableOpacity style={[styles.filterBtn, filter === "All" && styles.filterBtnActive]} onPress={() => setFilter("All")}><Text style={[styles.filterText, filter === "All" && styles.filterTextActive]}>All</Text></TouchableOpacity>
