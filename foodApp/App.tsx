@@ -92,6 +92,46 @@ export default function App(): JSX.Element {
     );
   };
 
+  const calculateAveragePrices = (menuItems: Dish[]) => {
+    const averages: Record<Course, { total: number; count: number; average: number }> = {
+      Starters: { total: 0, count: 0, average: 0 },
+      Mains: { total: 0, count: 0, average: 0 },
+      Desserts: { total: 0, count: 0, average: 0 },
+    };
+
+    menuItems.forEach((item) => {
+      averages[item.course].total += item.price;
+      averages[item.course].count += 1;
+    });
+
+    Object.keys(averages).forEach((course) => {
+      const { total, count } = averages[course as Course];
+      averages[course as Course].average = count > 0 ? total / count : 0;
+    });
+
+    return averages;
+  };
+
+  const AveragePricesCard = ({ menu }: { menu: Dish[] }) => {
+    const averages = calculateAveragePrices(menu);
+
+    return (
+      <View style={[styles.averageCard, styles.shadow]}>
+        <Text style={styles.averageTitle}>Average Prices</Text>
+        {Object.entries(averages).map(([course, data]) => (
+          <View key={course} style={styles.averageRow}>
+            <View style={[styles.averageBadge, { backgroundColor: courseColors[course as Course] }]}>
+              <Text style={styles.averageBadgeText}>{course}</Text>
+            </View>
+            <Text style={styles.averagePrice}>
+              R{data.average.toFixed(2)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   // Home
   if (screen === "home") {
     const visible = filter === "All" ? menu : menu.filter(m => m.course === filter);
@@ -110,6 +150,8 @@ export default function App(): JSX.Element {
             </View>
           </View>
         </View>
+
+        <AveragePricesCard menu={menu} />
 
         <FlatList data={visible} keyExtractor={i => i.id} renderItem={({ item }) => <DishCard item={item} />} ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>No dishes yet. Come back soon.</Text></View>} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} />
 
@@ -217,4 +259,38 @@ const styles = StyleSheet.create({
   shadow: { shadowColor: "#000", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 6 }, shadowRadius: 12, elevation: 4 },
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", alignItems: "center" }, detailModal: { width: "90%", backgroundColor: "#fff", padding: 16, borderRadius: 12 }, dishMeta: { color: COLORS.muted, marginTop: 6 },
+
+  averageCard: {
+    backgroundColor: COLORS.card,
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: -4,
+  },
+  averageTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 12,
+    color: COLORS.dark,
+  },
+  averageRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  averageBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  averageBadgeText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  averagePrice: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.dark,
+  },
 });
