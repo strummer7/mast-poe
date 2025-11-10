@@ -143,11 +143,15 @@ export default function App(): JSX.Element {
           <View style={[styles.headerCard, styles.shadow]}>
             <View style={styles.chefRow}>
               <View style={styles.avatar}><Text style={styles.avatarInitial}>C</Text></View>
-              <View style={styles.chefInfo}><Text style={styles.title}>Chef Christoffel</Text><Text style={styles.tagline}>Latest menu — curated daily</Text><Text style={{ color: COLORS.muted, marginTop: 6, fontSize: 12 }}>Total meals: {menu.length}</Text></View>
-            </View>
-            <View style={styles.filterRow}>
-              <TouchableOpacity style={[styles.filterBtn, filter === "All" && styles.filterBtnActive]} onPress={() => setFilter("All")}><Text style={[styles.filterText, filter === "All" && styles.filterTextActive]}>All</Text></TouchableOpacity>
-              {COURSES.map(c => <TouchableOpacity key={c} style={[styles.filterBtn, filter === c && styles.filterBtnActive]} onPress={() => setFilter(c)}><Text style={[styles.filterText, filter === c && styles.filterTextActive]}>{c}</Text></TouchableOpacity>)}
+              <View style={styles.chefInfo}>
+                <Text style={styles.title}>Chef Christoffel</Text>
+                <Text style={styles.tagline}>Latest menu — curated daily</Text>
+                <Text style={{ color: COLORS.muted, marginTop: 6, fontSize: 12 }}>Total meals: {menu.length}</Text>
+                {/* Filters button only on Home */}
+                <TouchableOpacity onPress={() => setScreen("filter")} style={[styles.backBtnInline, { marginTop: 8 }]}>
+                  <Text style={{ color: COLORS.dark, fontWeight: "700" }}>Filters</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -177,7 +181,7 @@ export default function App(): JSX.Element {
     );
   }
 
-  // Filter screen (now in a separate file)
+  // Filter screen (separate file)
   if (screen === "filter") {
     return <FilterScreen filter={filter} setFilter={setFilter} setScreen={setScreen} />;
   }
@@ -190,8 +194,13 @@ export default function App(): JSX.Element {
         <View style={[styles.headerCard, styles.shadow]}>
           <View style={styles.chefRow}>
             <View style={styles.avatar}><Text style={styles.avatarInitial}>C</Text></View>
-            <View style={styles.chefInfo}><Text style={styles.title}>Chef Management</Text><Text style={styles.tagline}>Add or remove dishes</Text></View>
+            <View style={styles.chefInfo}>
+              <Text style={styles.title}>Chef Management</Text>
+              <Text style={styles.tagline}>Add or remove dishes</Text>
+            </View>
           </View>
+
+          {/* summaryRow left as-is; no Filters button here */}
           <View style={styles.summaryRow}>
             <View style={[styles.summaryCard, { backgroundColor: "#FFF3E0" }]}><Text style={[styles.summaryNumber, { color: COLORS.primary }]}>{menu.length}</Text><Text style={styles.summaryLabel}>Total dishes</Text></View>
             <View style={[styles.summaryCard, { backgroundColor: "#E1F5FE" }]}><Text style={[styles.summaryNumber, { color: COLORS.sky }]}>{menu.filter(m => m.course === "Starters").length}</Text><Text style={styles.summaryLabel}>Starters</Text></View>
