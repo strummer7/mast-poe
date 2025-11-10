@@ -13,6 +13,7 @@ import {
   Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import FilterScreen from "./FilterScreen";
 
 type Course = "Starters" | "Mains" | "Desserts";
 type Dish = { id: string; name: string; description?: string; course: Course; price: number; createdAt: number; };
@@ -44,7 +45,7 @@ export default function App(): JSX.Element {
   const [description, setDescription] = useState("");
   const [course, setCourse] = useState<Course>("Mains");
   const [priceText, setPriceText] = useState("");
-  const [screen, setScreen] = useState<"home" | "chef">("home");
+  const [screen, setScreen] = useState<"home" | "chef" | "filter">("home");
   const [filter, setFilter] = useState<"All" | Course>("All");
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
   const [selectedDishId, setSelectedDishId] = useState<string | null>(null);
@@ -174,6 +175,11 @@ export default function App(): JSX.Element {
         </Modal>
       </SafeAreaView>
     );
+  }
+
+  // Filter screen (now in a separate file)
+  if (screen === "filter") {
+    return <FilterScreen filter={filter} setFilter={setFilter} setScreen={setScreen} />;
   }
 
   // Chef
