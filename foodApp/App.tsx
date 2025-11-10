@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FilterScreen from "./FilterScreen";
+import CartBar from "./components/CartBar";
 
 type Course = "Starters" | "Mains" | "Desserts";
 type Dish = { id: string; name: string; description?: string; course: Course; price: number; createdAt: number; };
@@ -38,8 +39,10 @@ const courseColors: Record<Course, string> = {
   Desserts: "#FF8ACB",
 };
 
-export default function App(): JSX.Element {
+export default function App(): JSX.Element | null {
   const [menu, setMenu] = useState<Dish[]>([]);
+  // cart state: array of { dish, qty }
+  const [cart, setCart] = useState<{ dish: Dish; qty: number }[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -75,7 +78,18 @@ export default function App(): JSX.Element {
     ]);
   };
 
-  const DishCard = ({ item, chef = false }: { item: Dish; chef?: boolean }) => {
+  // cart helpers
+  const addToCart = (d: Dish) => {
+    setCart(prev => {
+      const found = prev.find(p => p.dish.id === d.id);
+      if (found) return prev.map(p => p.dish.id === d.id ? { ...p, qty: p.qty + 1 } : p);
+      return [{ dish: d, qty: 1 }, ...prev];
+    });
+  };
+  const removeFromCart = (id: string) => setCart(prev => prev.filter(p => p.dish.id !== id));
+  const clearCart = () => setCart([]);
+
+  const DishCard = ({ item, chef = false, onAdd }: { item: Dish; chef?: boolean; onAdd?: (d: Dish) => void }) => {
     const isSelected = selectedDishId === item.id;
     return (
       <TouchableOpacity activeOpacity={chef ? 1 : 0.9} onPress={() => !chef && setSelectedDish(item)} style={[styles.dishCard, styles.shadow, isSelected && styles.dishCardSelected]}>
@@ -87,7 +101,14 @@ export default function App(): JSX.Element {
         </View>
         <View style={styles.dishRight}>
           <Text style={styles.price}>R{item.price.toFixed(2)}</Text>
-          {chef ? <TouchableOpacity onPress={() => removeDish(item.id)} style={styles.deleteButton}><Text style={styles.deleteText}>Delete</Text></TouchableOpacity> : (isSelected ? <Text style={styles.selectedMark}>✓ Selected</Text> : null)}
+          {chef ? (
+            <TouchableOpacity onPress={() => removeDish(item.id)} style={styles.deleteButton}><Text style={styles.deleteText}>Delete</Text></TouchableOpacity>
+          ) : (
+            <>
+              {isSelected ? <Text style={styles.selectedMark}>✓ Selected</Text> : null}
+              <TouchableOpacity onPress={() => onAdd?.(item)} style={styles.addButton}><Text style={styles.addText}>Add</Text></TouchableOpacity>
+            </>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -153,16 +174,20 @@ export default function App(): JSX.Element {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* NEW: Manage button placed in top-right of headerCard */}
+            <TouchableOpacity style={styles.headerAction} onPress={() => setScreen("chef")}>
+              <Text style={styles.headerActionText}>Manage</Text>
+            </TouchableOpacity>
+
           </View>
         </View>
 
         <AveragePricesCard menu={menu} />
 
-        <FlatList data={visible} keyExtractor={i => i.id} renderItem={({ item }) => <DishCard item={item} />} ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>No dishes yet. Come back soon.</Text></View>} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} />
+        <FlatList data={visible} keyExtractor={i => i.id} renderItem={({ item }) => <DishCard item={item} onAdd={addToCart} />} ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>No dishes yet. Come back soon.</Text></View>} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} />
 
-        <View style={{ padding: 16 }}>
-          <TouchableOpacity style={[styles.loginBtn, { backgroundColor: COLORS.dark }]} onPress={() => setScreen("chef")}><Text style={{ color: "#fff", fontWeight: "800" }}>Manage menu (Chef)</Text></TouchableOpacity>
-        </View>
+        {/* bottom area left for other actions; Manage moved to header */}
 
         <Modal visible={!!selectedDish} animationType="fade" transparent>
           <View style={styles.modalOverlay}>
@@ -172,66 +197,78 @@ export default function App(): JSX.Element {
               {selectedDish?.description ? <Text style={styles.dishDesc}>{selectedDish.description}</Text> : null}
               <View style={{ flexDirection: "row", marginTop: 14 }}>
                 <TouchableOpacity onPress={() => setSelectedDish(null)} style={[styles.actionButton, styles.cancelButton]}><Text style={styles.actionText}>Close</Text></TouchableOpacity>
-                <TouchableOpacity onPress={() => { if (selectedDish) setSelectedDishId(selectedDish.id); setSelectedDish(null); }} style={[styles.actionButton, styles.saveButton]}><Text style={[styles.actionText, { color: "#fff" }]}>Select</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => { if (selectedDish) addToCart(selectedDish); setSelectedDish(null); }} style={[styles.actionButton, styles.saveButton]}><Text style={[styles.actionText, { color: "#fff" }]}>Add to cart</Text></TouchableOpacity>
               </View>
             </View>
           </View>
+        </Modal>
+
+        {/* Cart visible on Home */}
+        <CartBar cart={cart} onRemove={removeFromCart} onClear={clearCart} />
+      </SafeAreaView>
+    );
+  }
+
+  // Filter screen (separate file) - show cart overlay here as well
+  if (screen === "filter") {
+    return (
+      <>
+        <FilterScreen filter={filter} setFilter={setFilter} setScreen={setScreen} />
+        <CartBar cart={cart} onRemove={removeFromCart} onClear={clearCart} />
+      </>
+    );
+  }
+
+  // chef screen must be returned when screen === "chef"
+  if (screen === "chef") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerWrap}>
+          <View style={styles.headerTop} />
+          <View style={[styles.headerCard, styles.shadow]}>
+            <View style={styles.chefRow}>
+              <View style={styles.avatar}><Text style={styles.avatarInitial}>C</Text></View>
+              <View style={styles.chefInfo}>
+                <Text style={styles.title}>Chef Management</Text>
+                <Text style={styles.tagline}>Add or remove dishes</Text>
+              </View>
+            </View>
+
+            {/* summaryRow left as-is; no Filters button here */}
+            <View style={styles.summaryRow}>
+              <View style={[styles.summaryCard, { backgroundColor: "#FFF3E0" }]}><Text style={[styles.summaryNumber, { color: COLORS.primary }]}>{menu.length}</Text><Text style={styles.summaryLabel}>Total dishes</Text></View>
+              <View style={[styles.summaryCard, { backgroundColor: "#E1F5FE" }]}><Text style={[styles.summaryNumber, { color: COLORS.sky }]}>{menu.filter(m => m.course === "Starters").length}</Text><Text style={styles.summaryLabel}>Starters</Text></View>
+              <View style={[styles.summaryCard, { backgroundColor: "#E8F5E9" }]}><Text style={[styles.summaryNumber, { color: COLORS.mint }]}>{menu.filter(m => m.course === "Mains").length}</Text><Text style={styles.summaryLabel}>Mains</Text></View>
+              <View style={[styles.summaryCard, { backgroundColor: "#FCE4EC" }]}><Text style={[styles.summaryNumber, { color: COLORS.accent }]}>{menu.filter(m => m.course === "Desserts").length}</Text><Text style={styles.summaryLabel}>Desserts</Text></View>
+            </View>
+          </View>
+        </View>
+
+        <FlatList data={menu} keyExtractor={i => i.id} renderItem={({ item }) => <DishCard item={item} chef />} ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>No dishes yet. Tap + to add the first dish.</Text></View>} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} />
+
+        <TouchableOpacity style={[styles.fab, styles.shadow]} onPress={() => setModalVisible(true)} accessibilityLabel="Add dish"><Text style={styles.fabText}>+</Text></TouchableOpacity>
+
+        <View style={{ position: "absolute", left: 16, top: 24 }}>
+          <TouchableOpacity style={[styles.backBtnInline]} onPress={() => setScreen("home")}><Text style={{ color: COLORS.dark, fontWeight: "700" }}>← Home</Text></TouchableOpacity>
+        </View>
+
+        <Modal visible={modalVisible} animationType="slide" transparent>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalWrap}>
+            <View style={[styles.modalContent, styles.shadow]}>
+              <Text style={styles.modalTitle}>Add New Dish</Text>
+              <TextInput placeholder="Dish name" value={name} onChangeText={setName} style={styles.input} />
+              <TextInput placeholder="Description (optional)" value={description} onChangeText={setDescription} style={[styles.input, { height: 80 }]} multiline />
+              <View style={styles.courseRow}>{COURSES.map(c => { const sel = c === course; return (<TouchableOpacity key={c} onPress={() => setCourse(c)} style={[styles.courseButton, sel && styles.courseButtonSelected]}><Text style={[styles.courseText, sel && styles.courseTextSelected]}>{c}</Text></TouchableOpacity>); })}</View>
+              <TextInput placeholder="Price (e.g. 120.00)" value={priceText} onChangeText={(t) => setPriceText(t)} keyboardType="decimal-pad" style={styles.input} />
+              <View style={styles.modalActions}><TouchableOpacity onPress={() => { resetForm(); setModalVisible(false); }} style={[styles.actionButton, styles.cancelButton]}><Text style={styles.actionText}>Cancel</Text></TouchableOpacity><TouchableOpacity onPress={addDish} style={[styles.actionButton, styles.saveButton]}><Text style={[styles.actionText, { color: "white" }]}>Save</Text></TouchableOpacity></View>
+            </View>
+          </KeyboardAvoidingView>
         </Modal>
       </SafeAreaView>
     );
   }
 
-  // Filter screen (separate file)
-  if (screen === "filter") {
-    return <FilterScreen filter={filter} setFilter={setFilter} setScreen={setScreen} />;
-  }
-
-  // Chef
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerWrap}>
-        <View style={styles.headerTop} />
-        <View style={[styles.headerCard, styles.shadow]}>
-          <View style={styles.chefRow}>
-            <View style={styles.avatar}><Text style={styles.avatarInitial}>C</Text></View>
-            <View style={styles.chefInfo}>
-              <Text style={styles.title}>Chef Management</Text>
-              <Text style={styles.tagline}>Add or remove dishes</Text>
-            </View>
-          </View>
-
-          {/* summaryRow left as-is; no Filters button here */}
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryCard, { backgroundColor: "#FFF3E0" }]}><Text style={[styles.summaryNumber, { color: COLORS.primary }]}>{menu.length}</Text><Text style={styles.summaryLabel}>Total dishes</Text></View>
-            <View style={[styles.summaryCard, { backgroundColor: "#E1F5FE" }]}><Text style={[styles.summaryNumber, { color: COLORS.sky }]}>{menu.filter(m => m.course === "Starters").length}</Text><Text style={styles.summaryLabel}>Starters</Text></View>
-            <View style={[styles.summaryCard, { backgroundColor: "#E8F5E9" }]}><Text style={[styles.summaryNumber, { color: COLORS.mint }]}>{menu.filter(m => m.course === "Mains").length}</Text><Text style={styles.summaryLabel}>Mains</Text></View>
-            <View style={[styles.summaryCard, { backgroundColor: "#FCE4EC" }]}><Text style={[styles.summaryNumber, { color: COLORS.accent }]}>{menu.filter(m => m.course === "Desserts").length}</Text><Text style={styles.summaryLabel}>Desserts</Text></View>
-          </View>
-        </View>
-      </View>
-
-      <FlatList data={menu} keyExtractor={i => i.id} renderItem={({ item }) => <DishCard item={item} chef />} ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>No dishes yet. Tap + to add the first dish.</Text></View>} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} />
-
-      <TouchableOpacity style={[styles.fab, styles.shadow]} onPress={() => setModalVisible(true)} accessibilityLabel="Add dish"><Text style={styles.fabText}>+</Text></TouchableOpacity>
-
-      <View style={{ position: "absolute", left: 16, top: 24 }}>
-        <TouchableOpacity style={[styles.backBtnInline]} onPress={() => setScreen("home")}><Text style={{ color: COLORS.dark, fontWeight: "700" }}>← Home</Text></TouchableOpacity>
-      </View>
-
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalWrap}>
-          <View style={[styles.modalContent, styles.shadow]}>
-            <Text style={styles.modalTitle}>Add New Dish</Text>
-            <TextInput placeholder="Dish name" value={name} onChangeText={setName} style={styles.input} />
-            <TextInput placeholder="Description (optional)" value={description} onChangeText={setDescription} style={[styles.input, { height: 80 }]} multiline />
-            <View style={styles.courseRow}>{COURSES.map(c => { const sel = c === course; return (<TouchableOpacity key={c} onPress={() => setCourse(c)} style={[styles.courseButton, sel && styles.courseButtonSelected]}><Text style={[styles.courseText, sel && styles.courseTextSelected]}>{c}</Text></TouchableOpacity>); })}</View>
-            <TextInput placeholder="Price (e.g. 120.00)" value={priceText} onChangeText={(t) => setPriceText(t)} keyboardType="decimal-pad" style={styles.input} />
-            <View style={styles.modalActions}><TouchableOpacity onPress={() => { resetForm(); setModalVisible(false); }} style={[styles.actionButton, styles.cancelButton]}><Text style={styles.actionText}>Cancel</Text></TouchableOpacity><TouchableOpacity onPress={addDish} style={[styles.actionButton, styles.saveButton]}><Text style={[styles.actionText, { color: "white" }]}>Save</Text></TouchableOpacity></View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </SafeAreaView>
-  );
+  return null; // Fallback in case screen doesn't match any known value
 }
 
 const styles = StyleSheet.create({
@@ -308,4 +345,19 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: COLORS.dark,
   },
+  addButton: { marginTop: 8, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: COLORS.primary },
+  addText: { color: "#fff", fontWeight: "800" },
+
+  // NEW styles for header action button
+  headerAction: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+    backgroundColor: COLORS.dark,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    elevation: 6,
+  },
+  headerActionText: { color: "#fff", fontWeight: "800" },
 });
